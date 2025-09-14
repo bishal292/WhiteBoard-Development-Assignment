@@ -5,7 +5,7 @@ import Toolbar from "./Toolbar";
 import DrawingCanvas from "./DrawingCanvas.jsx";
 import UserCursors from "./UserCursors.jsx";
 
-const SOCKET_URL = import.meta.env.VITE_APP_SOCKET_URL || "/";
+const SOCKET_URL = import.meta.env.VITE_APP_SOCKET_URL || "http://localhost:5000";
 
 export default function Whiteboard() {
   const [socket, setSocket] = useState(null);
@@ -29,6 +29,9 @@ export default function Whiteboard() {
         alert("Room does not exist. Please check the Room ID.");
         window.location.href = "/";
         return;
+      }else{
+        const res = await response.json();
+        setDrawingData(res.drawingData || []);
       }
     })();
     const s = io(SOCKET_URL);
@@ -55,11 +58,6 @@ export default function Whiteboard() {
     s.on("clear-canvas", () => {
       setClearSignal(true);
       setTimeout(() => setClearSignal(false), 100);
-    });
-
-    s.on("drawing-data", (data) => {
-      setDrawingData(data);
-      drawingDataRef.current = data;
     });
 
     s.emit("join-room", { roomId, color, strokeWidth, tool });

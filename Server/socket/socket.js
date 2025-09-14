@@ -33,6 +33,7 @@ const setupSocketServer = (server) => {
         socket.emit("error", "Room not found");
         return;
       }
+      
       if (!color) color = "#000000";
       if (!strokeWidth) strokeWidth = 2;
       if (!tool) tool = "pencil";
@@ -40,8 +41,6 @@ const setupSocketServer = (server) => {
       roomsMeta[roomId] = roomsMeta[roomId] || { users: {} }; // initialize the room if it is not aplready present with an empty users object.
       roomsMeta[roomId].users[socket.id] = { color, strokeWidth, tool };
 
-      // Send current drawing data to the newly joined User
-      socket.emit("drawing-data", room.drawingData || []);
 
       io.to(roomId).emit("presence-update", {
         count: Object.keys(roomsMeta[roomId].users).length,
