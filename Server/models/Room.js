@@ -8,7 +8,7 @@ const DrawingCmd = new mongoose.Schema({
 
 const RoomSchema = new mongoose.Schema({
   roomId: { type: String, unique: true, required: true },
-  createdAt: { type: Date, default: Date.now },
+  createdAt: { type: Date, default: Date.now, expires: 30*24*60*60 },
   lastActivity: { type: Date, default: Date.now },
   drawingData: { type: [DrawingCmd], default: [] }
 });
