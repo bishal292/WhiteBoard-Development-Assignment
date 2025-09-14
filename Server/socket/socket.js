@@ -23,19 +23,31 @@ const setupSocketServer = (server) => {
   io.on("connection", (socket) => {
     console.log("socket connected with id: ", socket.id);
 
-    socket.on("join-room", async ({ roomId }) => {
+    socket.on("join-room", async ({ roomId, color, strokeWidth, tool }) => {
+      if (!roomId) {
+        socket.emit("error", "Room ID is required to join a room");
+        return;
+      }
       const room = await Room.findOne({ roomId });
       if (!room) {
         socket.emit("error", "Room not found");
         return;
       }
+      if (!color) {
+        color = "#000000";        
+      }
+      if (!strokeWidth) {
+        strokeWidth = 2;        
+      }
+      if (!tool) {
+        tool = "pencil";        
+      }
       socket.join(roomId);
       roomsMeta[roomId] = roomsMeta[roomId] || { users: {} }; // initialize the room if it is not aplready present with an empty users object.
-      roomsMeta[roomId].users[socket.id] = { color: "#000" };
+      roomsMeta[roomId].users[socket.id] = { color, strokeWidth, tool };
 
       io.to(roomId).emit("presence-update", {
         count: Object.keys(roomsMeta[roomId].users).length,
-        users: roomsMeta[roomId].users,
       });
     });
 
@@ -66,8 +78,65 @@ const setupSocketServer = (server) => {
       });
     });
 
+    // --- SOCKET EVENTS FOR WHITEBOARD COLLABORATION ---
+
+    // Cursor position update
+    socket.on("cursor-move", ({ x, y }) => {
+      const rooms = Array.from(socket.rooms).filter((r) => r !== socket.id);
+      rooms.forEach((roomId) => {
+        socket.to(roomId).emit("cursor-move", {
+          socketId: socket.id,
+          x,
+          y,
+        });
+      });
+    });
+
+    // Drawing events
+    socket.on("draw-start", ({ x, y, color, strokeWidth, tool }) => {
+      const rooms = Array.from(socket.rooms).filter((r) => r !== socket.id);
+      rooms.forEach((roomId) => {
+        socket.to(roomId).emit("draw-start", {
+          socketId: socket.id,
+          x,
+          y,
+          color,
+          strokeWidth,
+          tool,
+        });
+      });
+    });
+
+    socket.on("draw-move", ({ x, y }) => {
+      const rooms = Array.from(socket.rooms).filter((r) => r !== socket.id);
+      rooms.forEach((roomId) => {
+        socket.to(roomId).emit("draw-move", {
+          socketId: socket.id,
+          x,
+          y,
+        });
+      });
+    });
+
+    socket.on("draw-end", () => {
+      const rooms = Array.from(socket.rooms).filter((r) => r !== socket.id);
+      rooms.forEach((roomId) => {
+        socket.to(roomId).emit("draw-end", {
+          socketId: socket.id,
+        });
+      });
+    });
+
+    // Clear canvas event
+    socket.on("clear-canvas", () => {
+      const rooms = Array.from(socket.rooms).filter((r) => r !== socket.id);
+      rooms.forEach((roomId) => {
+        io.to(roomId).emit("clear-canvas");
+      });
+    });
+
     socket.on("disconnect", () => {
-      // Remove the disconnected user from all the room they have joined.
+      // Remove the disconnected user from all the room they have joined previously.
       for (const roomId in roomsMeta) {
         if (roomsMeta[roomId].users[socket.id]) {
           leaveRoom(roomId);
