@@ -33,18 +33,15 @@ const setupSocketServer = (server) => {
         socket.emit("error", "Room not found");
         return;
       }
-      if (!color) {
-        color = "#000000";        
-      }
-      if (!strokeWidth) {
-        strokeWidth = 2;        
-      }
-      if (!tool) {
-        tool = "pencil";        
-      }
+      if (!color) color = "#000000";
+      if (!strokeWidth) strokeWidth = 2;
+      if (!tool) tool = "pencil";
       socket.join(roomId);
       roomsMeta[roomId] = roomsMeta[roomId] || { users: {} }; // initialize the room if it is not aplready present with an empty users object.
       roomsMeta[roomId].users[socket.id] = { color, strokeWidth, tool };
+
+      // Send current drawing data to the newly joined User
+      socket.emit("drawing-data", room.drawingData || []);
 
       io.to(roomId).emit("presence-update", {
         count: Object.keys(roomsMeta[roomId].users).length,
@@ -93,9 +90,22 @@ const setupSocketServer = (server) => {
     });
 
     // Drawing events
-    socket.on("draw-start", ({ x, y, color, strokeWidth, tool }) => {
+    socket.on("draw-start", async ({ x, y, color, strokeWidth, tool }) => {
       const rooms = Array.from(socket.rooms).filter((r) => r !== socket.id);
-      rooms.forEach((roomId) => {
+      for (const roomId of rooms) {
+        // Save to DB
+        await Room.updateOne(
+          { roomId },
+          {
+            $push: {
+              drawingData: {
+                type: "stroke-start",
+                data: { socketId: socket.id, x, y, color, strokeWidth, tool },
+              },
+            },
+            $set: { lastActivity: new Date() },
+          }
+        );
         socket.to(roomId).emit("draw-start", {
           socketId: socket.id,
           x,
@@ -104,35 +114,71 @@ const setupSocketServer = (server) => {
           strokeWidth,
           tool,
         });
-      });
+      }
     });
 
-    socket.on("draw-move", ({ x, y }) => {
+    socket.on("draw-move", async ({ x, y }) => {
       const rooms = Array.from(socket.rooms).filter((r) => r !== socket.id);
-      rooms.forEach((roomId) => {
+      for (const roomId of rooms) {
+        await Room.updateOne(
+          { roomId },
+          {
+            $push: {
+              drawingData: {
+                type: "stroke-move",
+                data: { socketId: socket.id, x, y },
+              },
+            },
+            $set: { lastActivity: new Date() },
+          }
+        );
         socket.to(roomId).emit("draw-move", {
           socketId: socket.id,
           x,
           y,
         });
-      });
+      }
     });
 
-    socket.on("draw-end", () => {
+    socket.on("draw-end", async () => {
       const rooms = Array.from(socket.rooms).filter((r) => r !== socket.id);
-      rooms.forEach((roomId) => {
+      for (const roomId of rooms) {
+        await Room.updateOne(
+          { roomId },
+          {
+            $push: {
+              drawingData: {
+                type: "stroke-end",
+                data: { socketId: socket.id },
+              },
+            },
+            $set: { lastActivity: new Date() },
+          }
+        );
         socket.to(roomId).emit("draw-end", {
           socketId: socket.id,
         });
-      });
+      }
     });
 
     // Clear canvas event
-    socket.on("clear-canvas", () => {
+    socket.on("clear-canvas", async () => {
       const rooms = Array.from(socket.rooms).filter((r) => r !== socket.id);
-      rooms.forEach((roomId) => {
+      for (const roomId of rooms) {
+        await Room.updateOne(
+          { roomId },
+          {
+            $push: {
+              drawingData: {
+                type: "clear",
+                data: { socketId: socket.id },
+              },
+            },
+            $set: { lastActivity: new Date() },
+          }
+        );
         io.to(roomId).emit("clear-canvas");
-      });
+      }
     });
 
     socket.on("disconnect", () => {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams } from "react-router-dom";
 import io from "socket.io-client";
 import Toolbar from "./Toolbar";
@@ -16,6 +16,8 @@ export default function Whiteboard() {
   const [color, setColor] = useState("#000000");
   const [clearSignal, setClearSignal] = useState(false);
   const [remoteCursors, setRemoteCursors] = useState({});
+  const [drawingData, setDrawingData] = useState([]);
+  const drawingDataRef = useRef([]);
 
   useEffect(() => {
     (async () => {
@@ -53,6 +55,11 @@ export default function Whiteboard() {
     s.on("clear-canvas", () => {
       setClearSignal(true);
       setTimeout(() => setClearSignal(false), 100);
+    });
+
+    s.on("drawing-data", (data) => {
+      setDrawingData(data);
+      drawingDataRef.current = data;
     });
 
     s.emit("join-room", { roomId, color, strokeWidth, tool });
@@ -113,11 +120,11 @@ export default function Whiteboard() {
         />
         <DrawingCanvas
           socket={socket}
-          // remoteCursors={remoteCursors}
           tool={tool}
           color={color}
           strokeWidth={strokeWidth}
           clearSignal={clearSignal}
+          drawingData={drawingData}
         />
         <UserCursors remoteCursors={remoteCursors} />
       </div>

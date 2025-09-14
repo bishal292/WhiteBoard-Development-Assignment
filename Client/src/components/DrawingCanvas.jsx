@@ -5,7 +5,8 @@ export default function DrawingCanvas({
   tool,
   color,
   strokeWidth,
-  clearSignal
+  clearSignal,
+  drawingData = []
 }) {
   const canvasRef = useRef(null);
   const [drawing, setDrawing] = useState(false);
@@ -65,6 +66,42 @@ export default function DrawingCanvas({
       ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
   }, [clearSignal]);
+
+  useEffect(() => {
+    if (!drawingData || drawingData.length === 0) return;
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const tempStrokes = {};
+    drawingData.forEach(cmd => {
+      if (cmd.type === "clear") {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      } else if (cmd.type === "stroke-start") {
+        tempStrokes[cmd.data.socketId] = {
+          lastPoint: { x: cmd.data.x, y: cmd.data.y },
+          color: cmd.data.color,
+          strokeWidth: cmd.data.strokeWidth,
+          tool: cmd.data.tool
+        };
+      } else if (cmd.type === "stroke-move") {
+        const stroke = tempStrokes[cmd.data.socketId];
+        if (stroke) {
+          ctx.strokeStyle = stroke.color;
+          ctx.lineWidth = stroke.strokeWidth;
+          ctx.lineCap = "round";
+          ctx.lineJoin = "round";
+          ctx.globalAlpha = stroke.tool === "pencil" ? 0.7 : 1.0;
+          ctx.beginPath();
+          ctx.moveTo(stroke.lastPoint.x, stroke.lastPoint.y);
+          ctx.lineTo(cmd.data.x, cmd.data.y);
+          ctx.stroke();
+          stroke.lastPoint = { x: cmd.data.x, y: cmd.data.y };
+        }
+      } else if (cmd.type === "stroke-end") {
+        delete tempStrokes[cmd.data.socketId];
+      }
+    });
+  }, [drawingData]);
 
   const getPointer = (e) => {
     const canvas = canvasRef.current;
