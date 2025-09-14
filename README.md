@@ -2,7 +2,7 @@
 
 A real-time collaborative whiteboard built with React, Vite, Node.js, Express, Socket.IO, and MongoDB.
 
-watch working demo video of the project [here](demo.mp4)
+watch working demo video of the project [here](https://youtu.be/sn43eToGpng)
 ---
 
 ## 1. Setup Instructions
