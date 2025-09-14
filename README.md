@@ -259,8 +259,10 @@ npm test
 
 - **FAQs:**
   - **Q:** How do I reset the database?
+    - 
     **A:** You can reset the database by dropping the existing database and creating a new one. Be careful, this will delete all data.
   - **Q:** How do I change the port?
+    -
     **A:** You can change the port by modifying the variables in the `.env` file you can have a look of the variables being used in the application by visiting `.env.example` file.
 
 ---
